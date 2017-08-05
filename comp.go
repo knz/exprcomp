@@ -9,16 +9,19 @@ type ins struct {
 	typ  int
 	imm  int
 	imm2 int
+	ret  int
 }
 
 type prog struct {
 	cst  []datum
 	code []ins
-	funs []func(ctx evalCtx, args []datum) (datum, error)
+	data []datum
+	funs []func(ctx evalCtx, ret datum, args []datum) error
 }
 
 func (p *prog) disas(w io.Writer) {
 	fmt.Fprintf(w, "constants: %+v\n", p.cst)
+	fmt.Fprintf(w, "data: %+v\n", p.data)
 	fmt.Fprintf(w, "functions: %+v\n", p.funs)
 	fmt.Fprintln(w, "code:")
 	for _, ins := range p.code {
@@ -37,13 +40,15 @@ func makeprog() prog {
 	return prog{
 		cst:  make([]datum, 0, 10),
 		code: make([]ins, 0, 10),
-		funs: make([]func(ctx evalCtx, args []datum) (datum, error), 0, 10),
+		data: make([]datum, 0, 10),
+		funs: make([]func(ctx evalCtx, res datum, args []datum) error, 0, 10),
 	}
 }
 
 func (p *prog) reset() {
 	p.cst = p.cst[:0]
 	p.code = p.code[:0]
+	p.data = p.data[:0]
 }
 
 func (p *prog) pushcode(c ins) {
@@ -57,7 +62,14 @@ func (p *prog) pushcst(c datum) int {
 	return curlen
 }
 
-func (p *prog) pushfunc(f func(ctx evalCtx, args []datum) (datum, error)) int {
+func (p *prog) pushdata(c datum) int {
+	cur := p.data
+	curlen := len(cur)
+	p.data = append(cur, c)
+	return curlen
+}
+
+func (p *prog) pushfunc(f func(ctx evalCtx, res datum, args []datum) error) int {
 	cur := p.funs
 	curlen := len(cur)
 	p.funs = append(cur, f)
@@ -72,12 +84,16 @@ func (p *prog) compile(n node) {
 	case *intadd:
 		p.compile(v.left)
 		p.compile(v.right)
-		p.pushcode(ins{typ: 1, imm: 0})
+		rv := dint(0)
+		r := p.pushdata(&rv)
+		p.pushcode(ins{typ: 1, imm: 0, ret: r})
 	case *call:
 		for _, a := range v.args {
 			p.compile(a)
 		}
+		rv := v.makeres()
+		r := p.pushdata(rv)
 		fidx := p.pushfunc(v.fn)
-		p.pushcode(ins{typ: 2, imm: len(v.args), imm2: fidx})
+		p.pushcode(ins{typ: 2, imm: len(v.args), imm2: fidx, ret: r})
 	}
 }

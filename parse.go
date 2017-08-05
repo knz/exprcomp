@@ -76,7 +76,7 @@ func parse(in io.Reader) (node, error) {
 			}
 			args := append([]node(nil), st[sp-nargs:sp]...)
 			sp -= nargs
-			st, sp = push(st, sp, &call{args: args, fn: pseudofunc})
+			st, sp = push(st, sp, &call{args: args, fn: pseudofunc, makeres: pseudoalloc})
 		default:
 			// ignore
 		}

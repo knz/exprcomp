@@ -28,16 +28,17 @@ func (d *dint) eval(_ evalCtx) (datum, error) { return d, nil }
 
 type intadd struct {
 	left, right node
-	addfunc     func(ctx evalCtx, x, y datum) (datum, error)
+	addfunc     func(ctx evalCtx, res, x, y datum) error
 }
 
 func (b *intadd) String() string {
 	return "(" + b.left.String() + "+" + b.right.String() + ")"
 }
 
-func addint(ctx evalCtx, x, y datum) (datum, error) {
-	res := dint(int64(*(x.(*dint))) + int64(*(y.(*dint))))
-	return &res, nil
+func addint(ctx evalCtx, res, x, y datum) error {
+	ri := res.(*dint)
+	*ri = dint(int64(*(x.(*dint))) + int64(*(y.(*dint))))
+	return nil
 }
 
 func (b *intadd) eval(ctx evalCtx) (datum, error) {
@@ -49,17 +50,25 @@ func (b *intadd) eval(ctx evalCtx) (datum, error) {
 	if err != nil {
 		return nil, err
 	}
-	return b.addfunc(ctx, x, y)
+	res := dint(0)
+	return &res, b.addfunc(ctx, &res, x, y)
 }
 
 type call struct {
-	args []node
-	fn   func(ctx evalCtx, args []datum) (datum, error)
+	args    []node
+	makeres func() datum
+	fn      func(ctx evalCtx, res datum, args []datum) error
 }
 
-func pseudofunc(ctx evalCtx, args []datum) (datum, error) {
-	res := dint(int64(len(args)))
-	return &res, nil
+func pseudoalloc() datum {
+	res := dint(0)
+	return &res
+}
+
+func pseudofunc(ctx evalCtx, res datum, args []datum) error {
+	ri := res.(*dint)
+	*ri = dint(int64(len(args)))
+	return nil
 }
 
 func (c *call) String() string {
@@ -85,5 +94,6 @@ func (c *call) eval(ctx evalCtx) (datum, error) {
 		}
 		args[i] = d
 	}
-	return c.fn(ctx, args)
+	res := c.makeres()
+	return res, c.fn(ctx, res, args)
 }

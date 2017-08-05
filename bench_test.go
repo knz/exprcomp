@@ -110,7 +110,7 @@ func benchcomprun(b *testing.B, n node) {
 	}
 }
 
-const doRun = false
+const doRun = true
 
 func BenchmarkBlah(b *testing.B) {
 	benches := []struct {

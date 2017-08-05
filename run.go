@@ -8,6 +8,7 @@ func (p *prog) run(ctx evalCtx, lst *[100]datum) error {
 	cst := p.cst
 	cstlen := len(cst)
 	dst := 0
+	data := p.data
 	st := lst
 	var res datum
 	var err error
@@ -21,14 +22,16 @@ func (p *prog) run(ctx evalCtx, lst *[100]datum) error {
 			res = cst[ins.imm]
 		case 1: // add
 			x, y := st[dst-2], st[dst-1]
-			res, err = addint(ctx, x, y)
+			res := data[ins.ret]
+			err = addint(ctx, res, x, y)
 			if err != nil {
 				return err
 			}
 			dst -= 2
 		case 2: // call
 			args := st[dst-ins.imm : dst]
-			res, err = p.funs[ins.imm2](ctx, args)
+			res = data[ins.ret]
+			err = p.funs[ins.imm2](ctx, res, args)
 			if err != nil {
 				return err
 			}
